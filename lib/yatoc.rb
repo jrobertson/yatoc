@@ -4,8 +4,6 @@
 
 # description: Yet Another Table Of Contents HTML generator
 
-
-require 'c32'
 require 'line-tree'
 
 
@@ -18,65 +16,52 @@ class Yatoc
     
     @debug = debug
 
-    @to_html = html.scan(/<h\d+/).length > 3 ? gen_toc(html) : html
+    @to_html = html.scan(/<h\d+/).length > min_sections ? gen_toc(html) : html
 
   end
+
+  private  
 
   def gen_toc(html)
 
     a = scan_headings html
-    puts a.inspect.debug if @debug
+    puts ('a: ' + a.inspect).debug if @debug
     
     a2 = make_tree(a)
     puts a2.inspect.debug if @debug
+    raw_html = LineTree.new(a2).to_html(numbered: true)            
     
-    a3 = LineTree.new(a2).to_a
-    puts a3.inspect.debug if @debug
-    
-    toc = "<ul>%s</ul>" % make_headings(a3)
+    puts ('raw_html: ' + raw_html.inspect).debug if @debug
+    toc = make_linkable(raw_html)
     @to_toc = toc
     
     pos = html =~ /<h2/
     html.insert(pos, "<div id='toc' class='toc'>\n%s\n</div>\n\n" % toc)
 
-  end
+  end  
 
-  private
+  def make_linkable(html)
 
-  def make_headings(a, indent=-1, count=nil)
+    doc = Rexle.new(html)
+    doc.root.each_recursive do |node|
 
-    items = a.map.with_index do |x, i|    
-      
-      if x.is_a? Array then
-
-        id, head, tail = if count then 
-         
-          [
-            count.to_s + '.' + i.to_s, 
-            i == 1 ? "<ul>\n" : '', 
-            i == a.length - 1 ? "</li>\n</ul></li>" : \
-                i == a.length - 1 ? '</ul></li>' : ''
-          ]
-
-        else
-          [i+1, '', '']
-        end
-
-        head + make_headings(x, indent+1, id) + tail
+      if node.name == 'li' then
         
-      else
+        link = node.text ? '#' + node.text.strip.downcase.gsub(' ', '-') : ''
+        anchor = Rexle::Element.new('a', attributes: {href: link})
+        anchor.add Rexle::Element.new('span', value: node\
+                                      .attributes[:id][1..-1].gsub('-','.'))
+        
+        anchor.children << ' ' + node.text if node.text
 
-        #"%s%s %s" % ['  ' * indent, count, x]
-        r = "%s<li><a href='#%s'><span>%s</span> %s</a>" % \
-          ['  ' * indent, x.downcase.gsub(' ','-'), count, x]
-        i == 1 ? "<ul>" + r : r
+        node.add anchor
+        node.text = ''
+        node.attributes.delete :id
 
       end
-
     end
-
-    items.join("\n")
-
+    
+    doc.xml declaration: false
   end
 
 
@@ -88,13 +73,12 @@ class Yatoc
     end
     
     a.map.with_index do |x, i|
-
       
       puts ('x: ' + x.inspect).debug if @debug
       
       if x.is_a? Array then
 
-        puts 'before make_true()'.info if @debug
+        puts 'before make_tree()'.info if @debug
         
         make_tree(x, indent+1)
 

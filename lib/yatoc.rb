@@ -12,9 +12,9 @@ class Yatoc
 
   attr_reader :to_html, :to_toc
   
-  def initialize(html, min_sections: 3, debug: false)
+  def initialize(html, min_sections: 3, numbered: true, debug: false)
     
-    @debug = debug
+    @numbered, @debug = numbered, debug
 
     @to_html = html.scan(/<h\d+/).length > min_sections ? gen_toc(html) : html
 
@@ -29,7 +29,7 @@ class Yatoc
     
     a2 = make_tree(a)
     puts a2.inspect.debug if @debug
-    raw_html = LineTree.new(a2).to_html(numbered: true)            
+    raw_html = LineTree.new(a2).to_html(numbered: @numbered)            
     
     puts ('raw_html: ' + raw_html.inspect).debug if @debug
     toc = make_linkable(raw_html)
@@ -49,14 +49,19 @@ class Yatoc
         
         link = node.text ? '#' + node.text.strip.downcase.gsub(' ', '-') : ''
         anchor = Rexle::Element.new('a', attributes: {href: link})
-        anchor.add Rexle::Element.new('span', value: node\
-                                      .attributes[:id][1..-1].gsub('-','.'))
         
-        anchor.children << ' ' + node.text if node.text
+        if @numbered then
+          anchor.add Rexle::Element.new('span', value: node\
+                                        .attributes[:id][1..-1].gsub('-','.'))
+          node.attributes.delete :id
+          anchor.children << ' ' + node.text if node.text
+        else
+          anchor.text = node.text if node.text
+        end
+        
 
         node.add anchor
         node.text = ''
-        node.attributes.delete :id
 
       end
     end

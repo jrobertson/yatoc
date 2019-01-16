@@ -10,29 +10,55 @@ require 'line-tree'
 class Yatoc
   using ColouredText
 
-  attr_reader :to_html, :to_toc
+  attr_reader :to_html, :to_toc, :to_index
   
   def initialize(html, min_sections: 3, numbered: true, debug: false)
     
     @numbered, @debug = numbered, debug
 
-    @to_html = html.scan(/<h\d+/).length > min_sections ? gen_toc(html) : html
+    if html.scan(/<h\d+/).length > min_sections then 
+   
+      gen_index(html)
+      @to_html = gen_toc(html)
+   
+      
+    else
+      html
+    end
 
   end
 
-  private  
+  private
+
+  def build_html(a)
+    
+    puts ('a: ' + a.inspect).debug if @debug    
+    
+    a2 = make_tree(a)
+    puts a2.inspect.debug if @debug
+    
+    raw_html = LineTree.new(a2).to_html(numbered: @numbered)               
+    puts ('raw_html: ' + raw_html.inspect).debug if @debug
+    
+    make_linkable(raw_html)    
+    
+  end
+  
+  def gen_index(html)
+
+    a = html.split(/(?=<h2)/)
+    
+    index = build_html(a)
+
+    @to_index = "<div id='index' class='index'>\n%s\n</div>\n\n" % index
+
+  end    
 
   def gen_toc(html)
 
     a = scan_headings html
-    puts ('a: ' + a.inspect).debug if @debug
     
-    a2 = make_tree(a)
-    puts a2.inspect.debug if @debug
-    raw_html = LineTree.new(a2).to_html(numbered: @numbered)            
-    
-    puts ('raw_html: ' + raw_html.inspect).debug if @debug
-    toc = make_linkable(raw_html)
+    toc = build_html(a)
     @to_toc = toc
     
     pos = html =~ /<h2/
@@ -59,7 +85,6 @@ class Yatoc
           anchor.text = node.text if node.text
         end
         
-
         node.add anchor
         node.text = ''
 
@@ -102,7 +127,7 @@ class Yatoc
   end
 
   def scan_headings(s, n=2)
-
+    
     s.split(/(?=<h#{n})/).map do |x| 
       x.include?('<h' + (n+1).to_s) ? scan_headings(x, n+1) : x
     end

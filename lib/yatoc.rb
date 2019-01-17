@@ -17,13 +17,19 @@ class Yatoc
     
     @numbered, @debug, @html = numbered, debug, html
 
-    @to_html = if html.scan(/<h\d+/).length > min_sections then 
-   
-      gen_toc(html)   
+    @to_html = if html =~ /<index[^>]+>/ then
+
+      html2 = gen_index(html)
+      puts 'html2: ' + html2.inspect
+      html.sub(/<index[^>]+>/, "\n" + html2 + "\n")    
+      
+    elsif html.scan(/<h\d+/).length > min_sections
+      
+      gen_toc(html)                 
       
     else
       html
-    end
+    end      
 
   end
   

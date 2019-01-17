@@ -4,6 +4,7 @@
 
 # description: Yet Another Table Of Contents HTML generator
 
+require 'pxindex'
 require 'line-tree'
 
 
@@ -14,18 +15,20 @@ class Yatoc
   
   def initialize(html, min_sections: 3, numbered: true, debug: false)
     
-    @numbered, @debug = numbered, debug
+    @numbered, @debug, @html = numbered, debug, html
 
-    if html.scan(/<h\d+/).length > min_sections then 
+    @to_html = if html.scan(/<h\d+/).length > min_sections then 
    
-      gen_index(html)
-      @to_html = gen_toc(html)
-   
+      gen_toc(html)   
       
     else
       html
     end
 
+  end
+  
+  def to_index(threshold: 5)
+    gen_index(@html, threshold: threshold)
   end
 
   private
@@ -44,13 +47,31 @@ class Yatoc
     
   end
   
-  def gen_index(html)
+  def gen_index(html, threshold: 5)
 
     a = html.split(/(?=<h2)/)
+    puts ('gen_index a: ' + a.inspect).debug if @debug
     
-    index = build_html(a)
+    if a.length < threshold then
+      
+      index = build_html(a)
 
-    @to_index = "<div id='index' class='index'>\n%s\n</div>\n\n" % index
+      @to_index = "<div id='index' class='index'>\n%s\n</div>\n\n" % index
+      
+    else
+      
+      a = scan_headings html
+      puts ('_a: ' + a.inspect).debug if @debug
+      
+      s = make_tree(a)
+      puts ('s: ' + s.inspect).debug if @debug
+      
+      px = PxIndex.new
+      px.import(s)
+
+      @to_index = "<div id='azindex' class='azindex'>\n%s\n</div>\n\n" \
+          % px.build_html
+    end
 
   end    
 

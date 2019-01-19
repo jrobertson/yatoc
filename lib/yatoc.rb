@@ -13,23 +13,79 @@ class Yatoc
 
   attr_reader :to_html, :to_toc, :to_index
   
-  def initialize(html, min_sections: 3, numbered: true, debug: false)
+  def initialize(html, min_sections: 3, numbered: nil, debug: false)
     
     @numbered, @debug, @html = numbered, debug, html
 
     @to_html = if html =~ /<index[^>]+>/ then
 
+      @numbered ||= false
       html2 = gen_index(html)
       puts 'html2: ' + html2.inspect
-      html.sub(/<index[^>]+>/, "\n" + html2 + "\n")    
+      "%s\n\n<div class='main'>%s</div>" % [html2, html.sub(/<index[^>]+>/, '')]
       
     elsif html.scan(/<h\d+/).length > min_sections
       
+      @unmbered ||= true
       gen_toc(html)                 
       
     else
       html
     end      
+
+  end
+  
+  def to_css()
+    
+<<CSS
+.sidenav {
+  border-top: 1px solid #9ef;
+  border-bottom: 1px solid #9ef;
+  width: 130px;
+  position: fixed;
+  z-index: 1;
+  top: 80px;
+  left: 10px;
+  background: transparent;
+  overflow-x: hidden;
+  padding: 8px 0;
+}
+  .sidenav ul {
+    background-color: transparent; margin: 0.3em 0.3em 0.3em 0.9em; 
+    padding: 0.3em 0.5em;   color: #5af;
+  }
+    
+    .sidenav ul li {
+      background-color: transparent; margin: 0.3em 0.1em; 
+      padding: 0.2em
+    }
+
+.sidenav a {
+  color: #5af;
+  padding: 6px 8px 6px 8px;
+  text-decoration: none;
+  font-size: 0.9em;
+
+}
+
+
+.sidenav a:focus { color: #1e2; }
+.sidenav a:hover { color: #1e2; }
+.sidenav a:active { color: #1e2; }
+
+
+a:link:active, a:visited:active {
+  color: (internal value);
+}
+
+.main {
+  margin-left: 140px; /* Same width as the sidebar + left position in px */
+  font-size: 1.0em; /* Increased text to enable scrolling */
+  padding: 0px 10px;
+}
+
+}
+CSS
 
   end
   
@@ -62,7 +118,7 @@ class Yatoc
       
       index = build_html(a)
 
-      @to_index = "<div id='index' class='index'>\n%s\n</div>\n\n" % index
+      @to_index = "<div id='index' class='sidenav'>\n%s\n</div>\n\n" % index
       
     else
       
@@ -75,7 +131,7 @@ class Yatoc
       px = PxIndex.new
       px.import(s)
 
-      @to_index = "<div id='azindex' class='azindex'>\n%s\n</div>\n\n" \
+      @to_index = "<div id='azindex' class='sidenav'>\n%s\n</div>\n\n" \
           % px.build_html
     end
 

@@ -6,6 +6,7 @@
 
 require 'pxindex'
 require 'line-tree'
+require 'kramdown'
 
 
 class Yatoc
@@ -13,24 +14,32 @@ class Yatoc
 
   attr_reader :to_html, :to_toc, :to_index
   
-  def initialize(html, min_sections: 3, numbered: nil, debug: false)
+  def initialize(content, min_sections: 3, numbered: nil, debug: false)
     
-    @numbered, @debug, @html = numbered, debug, html
+    @numbered, @debug, @content = numbered, debug, content
 
-    @to_html = if html =~ /<index[^>]+>/ then
+    
+    if content =~ /<index[^>]+>/ then
 
       @numbered ||= false
-      html2 = gen_index(html)
+      html2 = gen_index(content)
       puts 'html2: ' + html2.inspect
-      "%s\n\n<div class='main'>%s</div>" % [html2, html.sub(/<index[^>]+>/, '')]
+      @to_html = "%s\n\n<div class='main'>%s</div>" % \
+          [html2, content.sub(/<index[^>]+>/, '')]
       
-    elsif html.scan(/<h\d+/).length > min_sections
+    elsif content =~ /<ix[^>]+>/ then
+
+      @numbered ||= false
+      html2 = gen_index(content, threshold: nil)
+      puts 'html2: ' + html2.inspect
+      @to_html = "%s\n\n<div class='main'>%s</div>" % \
+          [html2, content.sub(/<ix[^>]+>/, '')]      
       
-      @unmbered ||= true
-      gen_toc(html)                 
+    elsif content.scan(/<h\d+/).length > min_sections
       
-    else
-      html
+      @numbered ||= true
+      gen_toc(content)                 
+      
     end      
 
   end
@@ -90,8 +99,48 @@ CSS
   end
   
   def to_index(threshold: 5)
-    gen_index(@html, threshold: threshold)
+    gen_index(@content, threshold: threshold)
   end
+
+  def to_aztoc()
+    
+    a = @content.split(/(?=^# )/).map {|x| x.scan(/^#+ +[^\n]+/)}
+
+    a2 = a.group_by {|x| x.first[/# +(.)/,1]}.sort
+
+    a3 = a2.map do |heading, body|
+      lists = body.map do |x|
+        x.map do |line| 
+          line.sub(/^(#+)/) {|y| '  ' * (y.length - 1) + '*'}
+        end.join("\n")
+      end
+      ['# ' + heading, lists]
+    end.join("\n\n")
+    
+    doc = Rexle.new("<div>%s</div>" % Kramdown::Document.new(a3).to_html)
+    
+    doc.root.xpath('//li').each do |li|
+
+      pnode = li.parent.parent
+
+      pg = ''
+
+      pg = if pnode.name == 'li' then
+        pnode.element('a/attribute::href').to_s.strip[/^[^#]+/] + '#' \
+            + li.text.to_s.strip.gsub(/ /,'_').downcase
+      else
+
+        li.text.to_s.strip.gsub(/ /,'_')
+      end
+
+      e = Rexle::Element.new('a', attributes: {href: pg}, \
+                             value: li.text.to_s.strip)
+      li.children[0] = e
+    end    
+    
+    doc.xml
+    
+  end  
 
   private
 
@@ -109,12 +158,27 @@ CSS
     
   end
   
+  def gen_aztoc(html)
+    
+      a = scan_headings html, 1
+      puts ('_a: ' + a.inspect).debug if @debug
+      
+      s = make_tree(a,0, 1)
+      puts ('s: ' + s.inspect).debug if @debug
+      
+      px = PxIndex.new
+      px.import(s)
+
+      @to_index = "<div id='azindex' class='sidenav'>\n%s\n</div>\n\n" \
+          % px.build_html    
+  end
+  
   def gen_index(html, threshold: 5)
 
     a = html.split(/(?=<h2)/)
     puts ('gen_index a: ' + a.inspect).debug if @debug
     
-    if a.length < threshold then
+    if threshold.nil? or a.length < threshold then
       
       index = build_html(a)
 
@@ -178,7 +242,7 @@ CSS
   end
 
 
-  def make_tree(a, indent=0)
+  def make_tree(a, indent=0, hn=2)
     
     if @debug then
       puts 'inside make_tree'.debug 
@@ -193,11 +257,11 @@ CSS
 
         puts 'before make_tree()'.info if @debug
         
-        make_tree(x, indent+1)
+        make_tree(x, indent+1, hn)
 
       else
 
-        next unless x =~ /<h[2-4]/
+        next unless x =~ /<h[#{hn}-4]/
         space = i == 0 ? indent-1 : indent
         heading = ('  ' * space) + x[/(?<=\>)[^<]+/]
         puts ('heading: ' + heading.inspect).debug if @debug

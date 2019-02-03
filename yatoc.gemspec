@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'yatoc'
-  s.version = '0.3.0'
+  s.version = '0.3.1'
   s.summary = 'Yet Another Table Of Contents HTML generator.'
   s.authors = ['James Robertson']
   s.files = Dir['lib/yatoc.rb']

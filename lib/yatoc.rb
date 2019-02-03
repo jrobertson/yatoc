@@ -19,31 +19,44 @@ class Yatoc
     @numbered, @debug, @content = numbered, debug, content
 
     
-    if content =~ /<index[^>]+>/ then
+    @to_html = if content =~ /<index[^>]+>/ then
 
       @numbered ||= false
+      puts '1. ready to gen_index'.info if @debug
       html2 = gen_index(content)
       puts 'html2: ' + html2.inspect
-      @to_html = "%s\n\n<div class='main'>%s</div>" % \
+      "%s\n\n<div class='main'>%s</div>" % \
           [html2, content.sub(/<index[^>]+>/, '')]
       
     elsif content =~ /<ix[^>]+>/ then
 
       @numbered ||= false
+      puts '2. ready to gen_index'.info if @debug
       html2 = gen_index(content, threshold: nil)
       puts 'html2: ' + html2.inspect
-      @to_html = "%s\n\n<div class='main'>%s</div>" % \
+      "%s\n\n<div class='main'>%s</div>" % \
           [html2, content.sub(/<ix[^>]+>/, '')]      
       
     elsif content.scan(/<h\d+/).length > min_sections
       
       @numbered ||= true
+      puts 'ready to gen_toc()'.info if @debug
       gen_toc(content)                 
+      
+    else
+      
+      content
       
     end      
 
+    
+    # note: @to_html is important because this gem is used by the 
+    #       Martile gem which expect to pass HTML through to render any TOCs.
+    
   end
   
+  # use in conjunction with the <ix/> tag to render a sidebar
+  #  
   def to_css()
     
 <<CSS

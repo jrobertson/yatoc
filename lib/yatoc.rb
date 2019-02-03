@@ -121,16 +121,18 @@ CSS
 
     a2 = a.group_by {|x| x.first[/# +(.)/,1]}.sort
 
-    a3 = a2.map do |heading, body|
+    s = a2.map do |heading, body|
       lists = body.map do |x|
         x.map do |line| 
           line.sub(/^(#+)/) {|y| '  ' * (y.length - 1) + '*'}
         end.join("\n")
-      end
+      end.join("\n") + "\n"
       ['# ' + heading, lists]
-    end.join("\n\n")
+    end.join("\n")
     
-    doc = Rexle.new("<div>%s</div>" % Kramdown::Document.new(a3).to_html)
+    puts 'to_aztoc | s: ' + s if @debug
+    
+    doc = Rexle.new("<div>%s</div>" % Kramdown::Document.new(s).to_html)
     
     doc.root.xpath('//li').each do |li|
 
@@ -145,6 +147,8 @@ CSS
 
         li.text.to_s.strip.gsub(/ /,'_')
       end
+      
+      puts 'pg: ' + pg.inspect if @debug
 
       e = Rexle::Element.new('a', attributes: {href: pg}, \
                              value: li.text.to_s.strip)

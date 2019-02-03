@@ -119,7 +119,7 @@ CSS
     
     a = @content.split(/(?=^# )/).map {|x| x.scan(/^#+ +[^\n]+/)}
 
-    a2 = a.group_by {|x| x.first[/# +(.)/,1]}.sort
+    a2 = a.group_by {|x| x.first[/# +(.)/,1].upcase}.sort
 
     s = a2.map do |heading, body|
       lists = body.map do |x|
@@ -127,7 +127,7 @@ CSS
           line.sub(/^(#+)/) {|y| '  ' * (y.length - 1) + '*'}
         end.join("\n")
       end.join("\n") + "\n"
-      ['# ' + heading, lists]
+      ['# ' + heading.capitalize, lists]
     end.join("\n")
     
     puts 'to_aztoc | s: ' + s if @debug

@@ -132,7 +132,7 @@ CSS
     
     puts 'to_aztoc | s: ' + s if @debug
     
-    doc = Rexle.new("<div>%s</div>" % Kramdown::Document.new(s).to_html)
+    doc = Rexle.new("<div id='aztoc'>%s</div>" % Kramdown::Document.new(s).to_html)
     
     doc.root.xpath('//li').each do |li|
 
@@ -142,7 +142,7 @@ CSS
 
       pg = if pnode.name == 'li' then
         pnode.element('a/attribute::href').to_s.strip[/^[^#]+/] + '#' \
-            + li.text.to_s.strip.gsub(/ /,'_').downcase
+            + li.text.to_s.strip.gsub(/ /,'-').downcase
       else
 
         li.text.to_s.strip.gsub(/ /,'_')
@@ -173,21 +173,6 @@ CSS
     
     make_linkable(raw_html)    
     
-  end
-  
-  def gen_aztoc(html)
-    
-      a = scan_headings html, 1
-      puts ('_a: ' + a.inspect).debug if @debug
-      
-      s = make_tree(a,0, 1)
-      puts ('s: ' + s.inspect).debug if @debug
-      
-      px = PxIndex.new
-      px.import(s)
-
-      @to_index = "<div id='azindex' class='sidenav'>\n%s\n</div>\n\n" \
-          % px.build_html    
   end
   
   def gen_index(html, threshold: 5)
